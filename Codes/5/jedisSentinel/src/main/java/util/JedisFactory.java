@@ -1,6 +1,8 @@
 package util;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import redis.clients.jedis.HostAndPort;
+import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisSentinelPool;
 
@@ -44,5 +46,24 @@ public class JedisFactory {
             jedisSentinelPool = new JedisSentinelPool("mymaster", sentinels, config, "123456");
         }
         return jedisSentinelPool;
+    }
+
+    public JedisCluster jedisCluster;
+
+    public JedisCluster getJedisCluster(){
+        if(jedisCluster == null){
+            //连接池的配置
+            GenericObjectPoolConfig config = new GenericObjectPoolConfig();
+            //节点集合
+            Set<HostAndPort> nodes = new HashSet<>();
+            nodes.add(new HostAndPort("124.71.228.7",9001));
+            nodes.add(new HostAndPort("124.71.228.7",9002));
+            nodes.add(new HostAndPort("124.71.228.7",9003));
+            nodes.add(new HostAndPort("124.71.228.7",9004));
+            nodes.add(new HostAndPort("124.71.228.7",9005));
+            nodes.add(new HostAndPort("124.71.228.7",9006));
+            jedisCluster = new JedisCluster(nodes,1000,1000,10,"123456",config);
+        }
+        return jedisCluster;
     }
 }
