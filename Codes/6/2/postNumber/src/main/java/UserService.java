@@ -1,8 +1,10 @@
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Transaction;
 import util.JedisFactory;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 public class UserService {
     private JedisPool jedisPool = JedisFactory.getInstance().getJedisPool();
@@ -97,6 +99,105 @@ public class UserService {
                 result.add(Integer.valueOf(member));
             }
             return result;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+
+    /**
+     * 添加标签
+     *
+     * @param userId
+     * @param tags
+     */
+    public void addTags(int userId, String... tags) {
+        if (tags == null || tags.length == 0) {
+            throw new IllegalArgumentException("参数为空!");
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            String key = "tags:" + userId;
+            //使用pipeline流水线来完成标签列表的大量增加，加速实现
+            Pipeline pipeline = jedis.pipelined();
+            for (String tag : tags) {
+                pipeline.sadd(key, tag);
+            }
+            pipeline.syncAndReturnAll();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 获取标签
+     *
+     * @param userId
+     * @return
+     */
+    public Set<String> getTags(int userId) {
+        try (Jedis jedis = jedisPool.getResource()) {
+            String key = "tags:" + userId;
+            return jedis.smembers(key);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+
+    //使用list来存放待办事项
+    /**
+     * 添加待办事项
+     *
+     * @param userId
+     * @param item
+     */
+    public void addTodoItem(int userId, String item) {
+        if (item == null || item.length() == 0) {
+            throw new IllegalArgumentException("参数为空!");
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            String key = "todo:list:" + userId;
+            jedis.rpush(key, item);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 移除待办事项
+     *
+     * @param userId
+     * @param item
+     */
+    public void delTodoItem(int userId, String item) {
+        if (item == null || item.length() == 0) {
+            throw new IllegalArgumentException("参数为空!");
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            String key = "todo:list:" + userId;
+            jedis.lrem(key, 1, item);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 获取待办事项
+     *
+     * @param userId
+     * @return
+     */
+    public List<String> getTodoList(int userId) {
+        try (Jedis jedis = jedisPool.getResource()) {
+            String key = "todo:list:" + userId;
+            return jedis.lrange(key, 0, -1);
         } catch (Exception e) {
             e.printStackTrace();
         }

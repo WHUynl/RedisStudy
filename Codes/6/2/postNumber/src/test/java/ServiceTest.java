@@ -55,4 +55,27 @@ public class ServiceTest {
         System.out.println(userService.getSameFollowing(1, 2));
         System.out.println(userService.getSameFollowing(3, 2));
     }
+
+    @Test
+    public void testTags() {
+        // 添加标签
+        userService.addTags(1, "音乐");
+        userService.addTags(1, "运动");
+        userService.addTags(1, new String[]{"游戏", "交友", "鬼畜"});
+        // 查询标签
+        System.out.println(userService.getTags(1));
+    }
+
+    @Test
+    public void testTodoList() {
+        // 添加待办事项
+        userService.addTodoItem(1, "看书");
+        userService.addTodoItem(1, "购物");
+        userService.addTodoItem(1, "定外卖");
+        userService.addTodoItem(1, "打游戏");
+        // 删除待办事项
+        userService.delTodoItem(1, "打游戏");
+        // 查询待办事项
+        System.out.println(userService.getTodoList(1));
+    }
 }
