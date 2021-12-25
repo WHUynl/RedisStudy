@@ -3,12 +3,17 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Transaction;
 import util.JedisFactory;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import util.CommonUtil;
+
 public class UserService {
     private JedisPool jedisPool = JedisFactory.getInstance().getJedisPool();
+    private Map<String, Integer> serviceMap = new HashMap<>();
 
+    public UserService() {
+        serviceMap.put("request", 20); // 普通请求
+        serviceMap.put("password", 5); // 输入密码
+    }
     /**
      * 关注
      *
@@ -203,5 +208,84 @@ public class UserService {
         }
 
         return null;
+    }
+
+
+    /**
+     *
+     *
+     * Redis解决的是分布式服务器不方便共享时，则可以均存放到Redis里面
+     *
+     **/
+    /**
+     * 创建令牌
+     *
+     * @param userId
+     * @return
+     */
+    public String createToken(int userId) {
+        try (Jedis jedis = jedisPool.getResource()) {
+            String token = CommonUtil.generateUUID();
+            String key = "token:" + token;
+            jedis.setex(key, 10, String.valueOf(userId));
+            return token;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    /**
+     * 验证令牌
+     *
+     * @param token
+     * @return
+     */
+    public Integer validateToken(String token) {
+        if (token == null || token.length() == 0) {
+            throw new IllegalArgumentException("参数为空!");
+        }
+
+        try (Jedis jedis = jedisPool.getResource()) {
+            String key = "token:" + token;
+            String userId = jedis.get(key);
+            if (userId != null) {
+                return Integer.valueOf(userId);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    /**
+     * 是否可用
+     *
+     * @param service
+     * @param userId
+     * @return
+     */
+    public boolean isAvailable(String service, int userId) {
+        if (service == null || service.length() == 0) {
+            throw new IllegalArgumentException("参数为空!");
+        }
+
+        boolean result = false;
+        try (Jedis jedis = jedisPool.getResource()) {
+            String key = "times:" + service + ":" + userId;
+            String times = jedis.get(key);
+            if (times == null) {
+                result = true;
+                jedis.setex(key, 15, String.valueOf(serviceMap.get(service)));
+            } else {
+                result = Integer.valueOf(times) > 0;
+            }
+            jedis.decr(key);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
     }
 }
